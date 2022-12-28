@@ -1,0 +1,95 @@
+#!/bin/sh
+
+CMD_PRINT_OUT_MODE_TEXT="\x00\x11\x01\x45"
+CMD_PIXEL_MODE_1PX="\x00\x21\x01\xBC"
+CMD_PIXEL_MODE_2PX="\x00\x21\x03\xB2"
+CMD_PIXEL_MODE_4PX="\x00\x21\x02\xB5"
+CMD_RANGE_MODE_SHORT="\x00\x61\x01\xE7"
+CMD_RANGE_MODE_LONG="\x00\x61\x03\xE9"
+
+TTYPORT="/dev/ttyACM0"
+CMD_PIXEL_MODE="$CMD_PIXEL_MODE_1PX"
+CMD_RANGE_MODE="$CMD_RANGE_MODE_LONG"
+
+set_cmd() {
+    CMD="$1"
+    if [ -n "$CMD" ]; then
+        printf "%b" "$CMD" > "$TTYPORT"
+    fi
+}
+
+usage() {
+cat << EOF
+Usage: $0 [OPTIONS]...
+
+OPTIONS:
+    -P,--port PORT            Specify tty port
+    -p, --pixel PIXEL_MODE    Set Pixel mode(1, 2 or 4)
+    -r, --range RANGE_MODE    Set Range mode(short or long)
+    -h, --help                Show this usage
+EOF
+}
+
+while [ $# -ne 0 ]
+do
+    case "$1" in
+        "-P"|"--port")
+            TTYPORT="$2"
+            ;;
+
+        "-p"|"--pixel")
+            case "$2" in
+                "1")
+                    CMD_PIXEL_MODE="$CMD_PIXEL_MODE_1PX"
+                    ;;
+                "2")
+                    CMD_PIXEL_MODE="$CMD_PIXEL_MODE_2PX"
+                    ;;
+                "4")
+                    CMD_PIXEL_MODE="$CMD_PIXEL_MODE_4PX"
+                    ;;
+                *)
+                    printf "Invalid pixel mode: %s\n" "$2"
+                    exit 1
+                    ;;
+            esac
+            ;;
+
+        "-r"|"--range")
+            case "$2" in
+                "short")
+                    CMD_RANGE_MODE="$CMD_RANGE_MODE_SHORT"
+                    ;;
+                "long")
+                    CMD_RANGE_MODE="$CMD_RANGE_MODE_LONG"
+                    ;;
+                *)
+                    printf "Invalid range mode: %s\n" "$2"
+                    exit 1
+                    ;;
+            esac
+            ;;
+
+        "-h"|"--help")
+            usage
+            exit 0
+            ;;
+    esac
+
+    shift
+    shift
+done
+
+if [ ! -e "$TTYPORT" ]; then
+    printf "Invalid tty port: %s\n" "$TTYPORT"
+    exit 1
+fi
+
+set_cmd "$CMD_PRINT_OUT_MODE_TEXT"
+set_cmd "$CMD_PIXEL_MODE"
+set_cmd "$CMD_RANGE_MODE"
+
+# Drop the first data
+read -r < "$TTYPORT"
+
+cat "$TTYPORT"
